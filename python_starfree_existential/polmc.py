@@ -20,7 +20,6 @@ class UUIDEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-
 # input: regular expression
 # output: a corresponding DFA
 
@@ -80,22 +79,21 @@ class POLModel:
 # output: an ID
 
 
-
 class PropDictionnary:
-    objs = {}#id to obj
-    dict = {} #str to id
+    objs = {}  # id to obj
+    dict = {}  # str to id
     nextID = 1
 
     # input: an object
     # register that object
     # output: the id of that object (an integer)
     def id(self, obj):
-        s = json.dumps(obj,cls=UUIDEncoder)
+        s = json.dumps(obj, cls=UUIDEncoder)
         if(not s in self.dict):
             self.dict[s] = self.nextID
             self.objs[self.nextID] = obj
             self.nextID = self.nextID + 1
-            
+
         return self.dict[s]
 
     #input: id
@@ -133,13 +131,16 @@ class Solver:
         return list(filter(lambda o: o != None, map(lambda id: self.d.getProp(id), self.g.get_model())))
 
     def addClause(self, clause):
+       # print(len(clause.posProp))
+       # print([self.d.id(p) for p in clause.posProp] + [-self.d.id(p) for p in clause.negProp])
         self.g.add_clause([self.d.id(p) for p in clause.posProp] +
                           [-self.d.id(p) for p in clause.negProp])
 
 
 class Clause:
-    posProp = []
-    negProp = []
+    def __init__(self):
+        self.posProp = []
+        self.negProp = []
 
     def addPos(self, prop):
         self.posProp.append(prop)
@@ -168,22 +169,27 @@ solver = Solver()
 
 
 def surv(A, idA, k):
-    solver.addProp({"type": "a", "automaton": idA, "t": 0, "q": autInitialState(A)})
-    
+    solver.addProp({"type": "a", "automaton": idA,
+                   "t": 0, "q": autInitialState(A)})
+
     for t in range(k+1):
-        solver.addExistUnique([{"type": "a", "automaton": idA, "t": t, "q": q} for q in autStates(A)])
+        solver.addExistUnique(
+            [{"type": "a", "automaton": idA, "t": t, "q": q} for q in autStates(A)])
 
     for t in range(k):
         for a in alphabet:
             for q in autStates(A):
                 c = Clause()
-                c.addNeg({"type": "a", "automaton": idA, "t": t, "q": q} )
-                c.addNeg({"type": "p", "t": t, "a": a} )
-                c.addPos({"type": "a", "automaton": idA, "t": t+1, "q": autGetSuccessor(A, q, a)} ) #it is deterministic contrary to the paper
+                c.addNeg({"type": "a", "automaton": idA, "t": t, "q": q})
+                c.addNeg({"type": "p", "t": t, "a": a})
+                # it is deterministic contrary to the paper
+                c.addPos({"type": "a", "automaton": idA, "t": t +
+                         1, "q": autGetSuccessor(A, q, a)})
                 solver.addClause(c)
                 # rules
 
-    solver.addExist([{"type": "a", "automaton": idA, "t": k, "q": q} for q in autFinalStates(A) ])
+    solver.addExist([{"type": "a", "automaton": idA, "t": k, "q": q}
+                    for q in autFinalStates(A)])
 
 
 # def test2():
@@ -208,12 +214,14 @@ def test1():
     k = 2
     # GuessWord
     for t in range(k):
-        solver.addExistUnique([{"type": "p", "t": t, "a": a} for a in alphabet])
+        solver.addExistUnique([{"type": "p", "t": t, "a": a}
+                              for a in alphabet])
 
-    A = autFromReg("ab")
-    autShow(A)
+    A = autFromReg("(ab)*")
+    B = autFromReg("a*b*")
+    #autShow(A)
     surv(A, "A", k)
-
+    surv(B, "B", k)
     print(solver.get_model())
 
 
