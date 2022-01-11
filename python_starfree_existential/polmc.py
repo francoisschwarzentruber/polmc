@@ -20,8 +20,34 @@ def regex_to_dfa(e):
 
 A = regex_to_dfa("(ab)*")
 
+#to draw the automaton A
+#visual_utils.draw_dfa(A)
+
+def printAutomaton(A):
+    print("alphabet:")
+    for a in A["alphabets"]:
+            print(a)
+
+    print("states:")
+    for state in A["states"]:
+            print(state)
+    print("")
+    print("transition_function:")
+    for tr in A["transition_function"]:
+        print(tr)
+
+    print("")
+    print(A["states"])
+    print(A["transition_function"])
+    print(A["initial_state"])
+    print(A["reachable_states"])
+
+printAutomaton(A)
+
+
+
 #visual_utils.draw_dfa(A, title="")
-print(A)
+#print(A)
 
 
 class POLModel:
