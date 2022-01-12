@@ -85,8 +85,6 @@ dfaSeqPatrol = DFA(
 )
 
 
-
-
 # automata functions
 
 def autInitialState(A):
@@ -99,17 +97,20 @@ def autGetSuccessor(A, state, letter):
     else:
         return "phi"
 
+
 def autIsFinal(A, state):
     return state in A.final_states
 
+
 def autStates(A):
     return A.states
+
 
 def autFinalStates(A):
     return A.final_states
 
 
-#not used yet
+# not used yet
 class POLModel:
     worlds = []
     succ = []
@@ -174,8 +175,11 @@ class Solver:
 
     # it returns a valuation that satisfies the set of constraints
     def get_model(self):
-        self.g.solve()
-        return list(filter(lambda o: o != None, map(lambda id: self.d.getProp(id), self.g.get_model())))
+        try:
+            self.g.solve()
+            return list(filter(lambda o: o != None, map(lambda id: self.d.getProp(id), self.g.get_model())))
+        except TypeError:
+            return None
 
     def addClause(self, clause):
        # print(len(clause.posProp))
@@ -184,7 +188,7 @@ class Solver:
                           [-self.d.id(p) for p in clause.negProp])
 
 
-#a clause of litterals
+# a clause of litterals
 class Clause:
     def __init__(self):
         self.posProp = []
@@ -196,13 +200,19 @@ class Clause:
     def addNeg(self, prop):
         self.negProp.append(prop)
 
-#not used yet
+
 M = POLModel()
-M.addWorld("(ab)*", ["p"])
-M.addWorld("(a)*", ["q"])
+M.addWorld("water", ["water"])
+M.addWorld("power", ["power"])
+M.addWorld("patrol", ["patrol"])
 M.addEdge(0, 1, "a")
-M.addEdge(0, 0, "a")
-phi = ["K", "a", "p"]
+M.addEdge(1, 0, "a")
+M.addEdge(1, 2, "a")
+M.addEdge(2, 1, "a")
+M.addEdge(2, 0, "a")
+M.addEdge(0, 2, "a")
+M.addEdge(0, 1, "b")
+M.addEdge(1, 0, "b")
 
 
 alphabet = ["l", "u", 'd', 'r']
@@ -216,6 +226,8 @@ solver = Solver()
 # effect: add to the solver the constraint of the execution of the guessed word in automaton A
 #        => proposition {"type": "s", "automaton": idA} is true iff the word is accepted by A
 #
+
+
 def surv(A, idA, k):
     solver.addProp({"type": "a", "automaton": idA,
                    "t": 0, "q": autInitialState(A)})
@@ -249,6 +261,92 @@ def surv(A, idA, k):
         solver.addClause(c)
 
 
+def tseitinWorld(iw, phi):
+    if isinstance(phi, str):
+        print("prop!")
+        if(phi in M.worlds[iw]["val"]):
+            solver.addProp({"type": "t", "world": iw, "formula": phi})
+        else:
+            print("false")
+            solver.addNegProp({"type": "t", "world": iw, "formula": phi})
+    elif phi[0] == "not":
+        c = Clause()
+        c.addPos({"type": "t", "world": iw, "formula": phi})
+        c.addPos({"type": "t", "world": iw, "formula": phi[1]})
+        solver.addClause(c)
+        c2 = Clause()
+        c2.addNeg({"type": "t", "world": iw, "formula": phi})
+        c2.addNeg({"type": "t", "world": iw, "formula": phi[1]})
+        solver.addClause(c2)
+    elif phi[0] == "and":
+        c = Clause()
+        c.addNeg({"type": "t", "world": iw, "formula": phi})
+        c.addPos({"type": "t", "world": iw, "formula": phi[1]})
+        solver.addClause(c)
+        c2 = Clause()
+        c2.addNeg({"type": "t", "world": iw, "formula": phi})
+        c2.addPos({"type": "t", "world": iw, "formula": phi[2]})
+        solver.addClause(c2)
+        c3 = Clause()
+        c3.addNeg({"type": "t", "world": iw, "formula": phi[1]})
+        c3.addNeg({"type": "t", "world": iw, "formula": phi[2]})
+        c3.addPos({"type": "t", "world": iw, "formula": phi})
+        solver.addClause(c3)
+    elif phi[0] == "K":
+        agent = phi[1]
+
+        for transition in M.succ[iw]:
+            if transition["agent"] == agent:
+                iu = transition["succ"]
+                c = Clause()
+                c.addNeg({"type": "t", "world": iw, "formula": phi})
+                c.addNeg({"type": "s", "automaton": M.worlds[iu]["exp"]})
+                c.addPos({"type": "t", "world": iu, "formula": phi[2]})
+                solver.addClause(c)
+
+        c = Clause()
+
+        for transition in M.succ[iw]:
+            if transition["agent"] == agent:
+                iu = transition["succ"]
+                c.addPos({"type": "p", "world": iu, "formula": phi[2]})
+
+                d = Clause()
+                d.addPos({"type": "p", "world": iu, "formula": phi[2]})
+                d.addPos({"type": "t", "world": iu, "formula": phi[2]})
+                d.addNeg({"type": "s", "automaton": M.worlds[iu]["exp"]})
+
+                solver.addClause(d)
+
+                e = Clause()
+                e.addNeg({"type": "p", "world": iu, "formula": phi[2]})
+                e.addPos({"type": "s", "automaton": M.worlds[iu]["exp"]})
+                solver.addClause(e)
+
+                e = Clause()
+                e.addNeg({"type": "p", "world": iu, "formula": phi[2]})
+                e.addNeg({"type": "t", "world": iu, "formula": phi[2]})
+                solver.addClause(e)
+
+        c.addPos({"type": "t", "world": iw, "formula": phi})
+
+        solver.addClause(c)
+
+
+def tseitin(phi):
+    for iw in range(len(M.worlds)):
+        tseitinWorld(iw, phi)
+
+    if isinstance(phi, str):
+        return
+    elif phi[0] == "not":
+        tseitin(phi[1])
+    elif phi[0] == "and":
+        tseitin(phi[1])
+        tseitin(phi[2])
+    elif phi[0] == "K":
+        tseitin(phi[2])
+
 
 def mcExample3():
     k = 4
@@ -263,13 +361,19 @@ def mcExample3():
     surv(dfaSeqPower, "power", k)
     surv(dfaSeqWater, "water", k)
 
-    solver.addProp({"type": "s", "automaton": "seq4"}) # pi
-    solver.addProp({"type": "s", "automaton": "water"}) # water should survive
-    solver.addProp({"type": "s", "automaton": "patrol"}) #patrol should survive
-    solver.addNegProp({"type": "s", "automaton": "power"}) #power should not survive
+    #phi = "azeaze"
+    phi = ["and", ["K", "b", "water"], ["not", ["K", "a", ["not", "patrol"]]]]
+
+    solver.addProp({"type": "t", "world": 0, "formula": phi})
+
+    tseitin(phi)
+    solver.addProp({"type": "s", "automaton": "seq4"})  # pi
+    solver.addProp({"type": "s", "automaton": "water"})  # water should survive
+    # patrol should survive
+    solver.addProp({"type": "s", "automaton": "patrol"})
+    solver.addNegProp({"type": "s", "automaton": "power"}
+                      )  # power should not survive
     print(solver.get_model())
-
-
 
 
 def mcExample4():
@@ -285,10 +389,12 @@ def mcExample4():
     surv(dfaSeqPower, "power", k)
     surv(dfaSeqWater, "water", k)
 
-    solver.addProp({"type": "s", "automaton": "seq3"}) # pi
-    solver.addProp({"type": "s", "automaton": "water"}) # water should survive
-    solver.addNegProp({"type": "s", "automaton": "patrol"}) #patrol should not survive
-    solver.addNegProp({"type": "s", "automaton": "power"}) #power should not survive
+    solver.addProp({"type": "s", "automaton": "seq3"})  # pi
+    solver.addProp({"type": "s", "automaton": "water"})  # water should survive
+    solver.addNegProp({"type": "s", "automaton": "patrol"}
+                      )  # patrol should not survive
+    solver.addNegProp({"type": "s", "automaton": "power"}
+                      )  # power should not survive
     print(solver.get_model())
 
 
