@@ -1,5 +1,5 @@
 # pip install pysat
-# pip install automata_toolkit
+# pip install automata-lib
 # pip install graphviz
 # pip install hashlib
 
@@ -7,33 +7,82 @@ from pysat.solvers import Glucose3
 from automata.fa.dfa import DFA
 import json
 import hashlib
+import time
+
+start = time.time()
 
 
-from uuid import UUID
+######################################
+# DFAs for the example
 
-class UUIDEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, UUID):
-            # if the obj is uuid, we simply return the value of uuid
-            return obj.hex
-        return json.JSONEncoder.default(self, obj)
+dfaSeq3 = DFA(
+    states={'q0', 'q1', 'q2', 'q3', 'phi'},
+    input_symbols={'u', 'l', 'r', 'd'},
+    transitions={
+        'q0': {'u': 'q1', 'l': 'q1', 'r': 'q1', 'd': 'q1'},
+        'q1': {'u': 'q2', 'l': 'q2', 'r': 'q2', 'd': 'q2'},
+        'q2': {'u': 'q3', 'l': 'q3', 'r': 'q3', 'd': 'q3'},
+        'q3': {'u': 'phi', 'l': 'phi', 'r': 'phi', 'd': 'phi'},
+        'phi': {'u': 'phi', 'l': 'phi', 'r': 'phi', 'd': 'phi'},
+    },
+    initial_state='q0',
+    final_states={'q3'}
+)
 
 
 dfaSeq4 = DFA(
     states={'q0', 'q1', 'q2', 'q3', 'q4', 'phi'},
     input_symbols={'u', 'l', 'r', 'd'},
     transitions={
-        'q0': {'u': 'q1', 'l': 'q1', 'r':'q1', 'd':'q1'},
-        'q1': {'u': 'q2', 'l': 'q2', 'r':'q2', 'd':'q2'},
-        'q2': {'u': 'q3', 'l': 'q3', 'r':'q3', 'd':'q3'},
-        'q3': {'u': 'q4', 'l': 'q4', 'r':'q4', 'd':'q4'},
-        'q4': {'u': 'phi', 'l': 'phi', 'r':'phi', 'd':'phi'},
-        'phi': {'u': 'phi', 'l': 'phi', 'r':'phi', 'd':'phi'},
+        'q0': {'u': 'q1', 'l': 'q1', 'r': 'q1', 'd': 'q1'},
+        'q1': {'u': 'q2', 'l': 'q2', 'r': 'q2', 'd': 'q2'},
+        'q2': {'u': 'q3', 'l': 'q3', 'r': 'q3', 'd': 'q3'},
+        'q3': {'u': 'q4', 'l': 'q4', 'r': 'q4', 'd': 'q4'},
+        'q4': {'u': 'phi', 'l': 'phi', 'r': 'phi', 'd': 'phi'},
+        'phi': {'u': 'phi', 'l': 'phi', 'r': 'phi', 'd': 'phi'},
     },
     initial_state='q0',
     final_states={'q4'}
 )
 
+dfaSeqWater = DFA(
+    states={'q0', 'q1', 'phi'},
+    input_symbols={'u', 'l', 'r', 'd'},
+    transitions={
+        'q0': {'u': 'q0', 'l': 'q1', 'r': 'q0', 'd': 'q1'},
+        'q1': {'u': 'q1', 'l': 'phi', 'r': 'q1', 'd': 'phi'},
+        'phi': {'u': 'phi', 'l': 'phi', 'r': 'phi', 'd': 'phi'},
+    },
+    initial_state='q0',
+    final_states={'q1'}
+)
+
+dfaSeqPower = DFA(
+    states={'q0', 'q1', 'phi'},
+    input_symbols={'u', 'l', 'r', 'd'},
+    transitions={
+        'q0': {'l': 'q0', 'u': 'q1', 'd': 'q0', 'r': 'q1'},
+        'q1': {'l': 'q1', 'u': 'phi', 'd': 'q1', 'r': 'phi'},
+        'phi': {'u': 'phi', 'l': 'phi', 'r': 'phi', 'd': 'phi'},
+    },
+    initial_state='q0',
+    final_states={'q1'}
+)
+
+dfaSeqPatrol = DFA(
+    states={'q0', 'q1', 'q2', 'q3', 'q4', 'phi'},
+    input_symbols={'u', 'l', 'r', 'd'},
+    transitions={
+        'q0': {'u': 'phi', 'l': 'phi', 'r': 'q1', 'd': 'phi'},
+        'q1': {'u': 'phi', 'l': 'phi', 'r': 'q1', 'd': 'q2'},
+        'q2': {'u': 'phi', 'l': 'q3', 'r': 'phi', 'd': 'q2'},
+        'q3': {'u': 'q4', 'l': 'q3', 'r': 'phi', 'd': 'phi'},
+        'q4': {'u': 'q4', 'l': 'phi', 'r': 'q1', 'd': 'phi'},
+        'phi': {'u': 'phi', 'l': 'phi', 'r': 'phi', 'd': 'phi'},
+    },
+    initial_state='q0',
+    final_states={'q0', 'q1', 'q2', 'q3', 'q4'}
+)
 
 
 def autInitialState(A):
@@ -57,7 +106,6 @@ def autStates(A):
 
 def autFinalStates(A):
     return A.final_states
-
 
 
 #
@@ -88,7 +136,7 @@ class PropDictionnary:
     # register that object
     # output: the id of that object (an integer)
     def id(self, obj):
-        s = json.dumps(obj, cls=UUIDEncoder)
+        s = json.dumps(obj)
         if(not s in self.dict):
             self.dict[s] = self.nextID
             self.objs[self.nextID] = obj
@@ -96,7 +144,7 @@ class PropDictionnary:
 
         return self.dict[s]
 
-    #input: id
+    # input: id
     # output: the object corresponding to that id
     def getProp(self, id):
         return self.objs.get(id)
@@ -124,6 +172,9 @@ class Solver:
 
     def addProp(self, prop):
         self.g.add_clause([self.d.id(prop)])
+
+    def addNegProp(self, prop):
+        self.g.add_clause([-self.d.id(prop)])
 
     # it returns a valuation that satisfies the set of constraints
     def get_model(self):
@@ -163,7 +214,7 @@ alphabet = ["l", "u", 'd', 'r']
 solver = Solver()
 
 # surv
-#input: automaton
+# input: automaton
 #        idA id of the automaton
 #
 
@@ -195,47 +246,57 @@ def surv(A, idA, k):
     solver.addClause(c)
 
     for q in autFinalStates(A):
-          c = Clause()
-          c.addNeg({"type": "a", "automaton": idA, "t": k, "q": q})  
-          c.addPos({"type": "s", "automaton": idA})
-          solver.addClause(c)
-
-    #solver.addExist([{"type": "a", "automaton": idA, "t": k, "q": q}
-     #               for q in autFinalStates(A)])
+        c = Clause()
+        c.addNeg({"type": "a", "automaton": idA, "t": k, "q": q})
+        c.addPos({"type": "s", "automaton": idA})
+        solver.addClause(c)
 
 
-# def test2():
-#     solver.addProp({"type": "t", "w": 0, "phi": phi})
 
-#     k = 4
-#     # GuessWord
-#     for t in range(k):
-#         solver.addExistUnique([{"type": "p", "t": t, "a": a} for a in alphabet])
-
-#     A = autFromReg("(ab)*")
-#     surv(A, "A", k)
-
-#     print(solver.get_model())
-
-# def test0():
-#     solver.addProp("a")
-#     print(solver.get_model())
-
-
-def test1():
+def mcExample3():
     k = 4
-    # GuessWord
+    # GuessWord: the guessed word of size k is uniquely determined
     for t in range(k):
         solver.addExistUnique([{"type": "p", "t": t, "a": a}
                               for a in alphabet])
 
-    #automata for all words of length 4
+    # encodings of the readings of the guessed word for all the automata
     surv(dfaSeq4, "seq4", k)
-    solver.addProp({"type":"s", "automaton":"seq4"})
+    surv(dfaSeqPatrol, "patrol", k)
+    surv(dfaSeqPower, "power", k)
+    surv(dfaSeqWater, "water", k)
+
+    solver.addProp({"type": "s", "automaton": "seq4"}) # pi
+    solver.addProp({"type": "s", "automaton": "water"}) # water should survive
+    solver.addProp({"type": "s", "automaton": "patrol"}) #patrol should survive
+    solver.addNegProp({"type": "s", "automaton": "power"}) #power should not survive
     print(solver.get_model())
 
 
-    
 
 
-test1()
+def mcExample4():
+    k = 3
+    # GuessWord: the guessed word of size k is uniquely determined
+    for t in range(k):
+        solver.addExistUnique([{"type": "p", "t": t, "a": a}
+                              for a in alphabet])
+
+    # encodings of the readings of the guessed word for all the automata
+    surv(dfaSeq3, "seq3", k)
+    surv(dfaSeqPatrol, "patrol", k)
+    surv(dfaSeqPower, "power", k)
+    surv(dfaSeqWater, "water", k)
+
+    solver.addProp({"type": "s", "automaton": "seq3"}) # pi
+    solver.addProp({"type": "s", "automaton": "water"}) # water should survive
+    solver.addNegProp({"type": "s", "automaton": "patrol"}) #patrol should not survive
+    solver.addNegProp({"type": "s", "automaton": "power"}) #power should not survive
+    print(solver.get_model())
+
+
+mcExample3()
+
+
+end = time.time()
+print(end - start)
