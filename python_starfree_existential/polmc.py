@@ -85,6 +85,10 @@ dfaSeqPatrol = DFA(
 )
 
 
+
+
+# automata functions
+
 def autInitialState(A):
     return A.initial_state
 
@@ -95,23 +99,17 @@ def autGetSuccessor(A, state, letter):
     else:
         return "phi"
 
-
 def autIsFinal(A, state):
     return state in A.final_states
 
-
 def autStates(A):
     return A.states
-
 
 def autFinalStates(A):
     return A.final_states
 
 
-#
-# print(A)
-
-
+#not used yet
 class POLModel:
     worlds = []
     succ = []
@@ -123,10 +121,8 @@ class POLModel:
     def addEdge(self, w, u, a):
         self.succ[w].append({"succ": u, "agent": a})
 
-# input: a string
-# output: an ID
 
-
+# dictionnary of propositional variables
 class PropDictionnary:
     objs = {}  # id to obj
     dict = {}  # str to id
@@ -188,6 +184,7 @@ class Solver:
                           [-self.d.id(p) for p in clause.negProp])
 
 
+#a clause of litterals
 class Clause:
     def __init__(self):
         self.posProp = []
@@ -199,26 +196,26 @@ class Clause:
     def addNeg(self, prop):
         self.negProp.append(prop)
 
-
+#not used yet
 M = POLModel()
 M.addWorld("(ab)*", ["p"])
 M.addWorld("(a)*", ["q"])
 M.addEdge(0, 1, "a")
 M.addEdge(0, 0, "a")
-
-
 phi = ["K", "a", "p"]
+
 
 alphabet = ["l", "u", 'd', 'r']
 
 solver = Solver()
 
 # surv
-# input: automaton
-#        idA id of the automaton
+# input: A = automaton
+#        idA = id of the automaton, a string that tags the automaton
+#        k length of the guessed word
+# effect: add to the solver the constraint of the execution of the guessed word in automaton A
+#        => proposition {"type": "s", "automaton": idA} is true iff the word is accepted by A
 #
-
-
 def surv(A, idA, k):
     solver.addProp({"type": "a", "automaton": idA,
                    "t": 0, "q": autInitialState(A)})
@@ -297,6 +294,5 @@ def mcExample4():
 
 mcExample3()
 
-
 end = time.time()
-print(end - start)
+print("Time elapsed: ", end - start, "ms")
