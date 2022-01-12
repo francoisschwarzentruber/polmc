@@ -4,13 +4,12 @@
 # pip install hashlib
 
 from pysat.solvers import Glucose3
-from automata_toolkit import regex_to_nfa, visual_utils, nfa_to_dfa, dfa_to_efficient_dfa
+from automata.fa.dfa import DFA
 import json
 import hashlib
 
 
 from uuid import UUID
-
 
 class UUIDEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -20,44 +19,45 @@ class UUIDEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-# input: regular expression
-# output: a corresponding DFA
+dfaSeq4 = DFA(
+    states={'q0', 'q1', 'q2', 'q3', 'q4', 'phi'},
+    input_symbols={'u', 'l', 'r', 'd'},
+    transitions={
+        'q0': {'u': 'q1', 'l': 'q1', 'r':'q1', 'd':'q1'},
+        'q1': {'u': 'q2', 'l': 'q2', 'r':'q2', 'd':'q2'},
+        'q2': {'u': 'q3', 'l': 'q3', 'r':'q3', 'd':'q3'},
+        'q3': {'u': 'q4', 'l': 'q4', 'r':'q4', 'd':'q4'},
+        'q4': {'u': 'phi', 'l': 'phi', 'r':'phi', 'd':'phi'},
+        'phi': {'u': 'phi', 'l': 'phi', 'r':'phi', 'd':'phi'},
+    },
+    initial_state='q0',
+    final_states={'q4'}
+)
 
 
-def autFromReg(e):
-    NFA = regex_to_nfa.regex_to_nfa(e)
-    DFA = nfa_to_dfa.nfa_to_dfa(NFA)
-    return DFA  # dfa_to_efficient_dfa.dfa_to_efficient_dfa(DFA)
-
-
-# to draw the automaton A
-#
 
 def autInitialState(A):
-    return A["initial_state"]
+    return A.initial_state
 
 
 def autGetSuccessor(A, state, letter):
-    if letter in A["transition_function"][state]:
-        return A["transition_function"][state][letter]
+    if letter in A.transitions[state]:
+        return A.transitions[state][letter]
     else:
         return "phi"
 
 
 def autIsFinal(A, state):
-    return state in A["final_states"]
+    return state in A.final_states
 
 
 def autStates(A):
-    return A["states"]
+    return A.states
 
 
 def autFinalStates(A):
-    return A["final_states"]
+    return A.final_states
 
-
-def autShow(A):
-    visual_utils.draw_dfa(A, title="")
 
 
 #
@@ -158,7 +158,7 @@ M.addEdge(0, 0, "a")
 
 phi = ["K", "a", "p"]
 
-alphabet = ["a", "b"]
+alphabet = ["l", "u", 'd', 'r']
 
 solver = Solver()
 
@@ -188,8 +188,20 @@ def surv(A, idA, k):
                 solver.addClause(c)
                 # rules
 
-    solver.addExist([{"type": "a", "automaton": idA, "t": k, "q": q}
-                    for q in autFinalStates(A)])
+    c = Clause()
+    for q in autFinalStates(A):
+        c.addPos({"type": "a", "automaton": idA, "t": k, "q": q})
+        c.addNeg({"type": "s", "automaton": idA})
+    solver.addClause(c)
+
+    for q in autFinalStates(A):
+          c = Clause()
+          c.addNeg({"type": "a", "automaton": idA, "t": k, "q": q})  
+          c.addPos({"type": "s", "automaton": idA})
+          solver.addClause(c)
+
+    #solver.addExist([{"type": "a", "automaton": idA, "t": k, "q": q}
+     #               for q in autFinalStates(A)])
 
 
 # def test2():
@@ -211,18 +223,19 @@ def surv(A, idA, k):
 
 
 def test1():
-    k = 2
+    k = 4
     # GuessWord
     for t in range(k):
         solver.addExistUnique([{"type": "p", "t": t, "a": a}
                               for a in alphabet])
 
-    A = autFromReg("(ab)*")
-    B = autFromReg("a*b*")
-    #autShow(A)
-    surv(A, "A", k)
-    surv(B, "B", k)
+    #automata for all words of length 4
+    surv(dfaSeq4, "seq4", k)
+    solver.addProp({"type":"s", "automaton":"seq4"})
     print(solver.get_model())
+
+
+    
 
 
 test1()
