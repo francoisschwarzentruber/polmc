@@ -13,7 +13,7 @@ start = time.time()
 
 
 ######################################
-# DFAs for the example
+# DFAs for example 3
 
 dfaSeq3 = DFA(
     states={'q0', 'q1', 'q2', 'q3', 'phi'},
@@ -90,35 +90,34 @@ dfaSeqPatrol = DFA(
 def autInitialState(A):
     return A.initial_state
 
-
 def autGetSuccessor(A, state, letter):
     if letter in A.transitions[state]:
         return A.transitions[state][letter]
     else:
         return "phi"
 
-
 def autIsFinal(A, state):
     return state in A.final_states
 
-
 def autStates(A):
     return A.states
-
 
 def autFinalStates(A):
     return A.final_states
 
 
-# not used yet
+# POL epistemic model
 class POLModel:
     worlds = []
     succ = []
 
+    #add a world whose expectation DFA is exp, and the valuation is val (val is the list of true propositional variables)
+    #the ID of the world are integers, assigned in the order 0, 1, 2, ....
     def addWorld(self, exp, val):
         self.worlds.append({"val": val, "exp": exp})
         self.succ.append([])
 
+    #add an edge between worlds of ID w to world of ID u with agent a
     def addEdge(self, w, u, a):
         self.succ[w].append({"succ": u, "agent": a})
 
@@ -146,11 +145,12 @@ class PropDictionnary:
     def getProp(self, id):
         return self.objs.get(id)
 
-
+#SAT Solver that handles propositional variables that are (high-level) Python objects
 class Solver:
-    g = Glucose3()
-    d = PropDictionnary()
+    g = Glucose3() #the inner SAT solver that handles propositions that are integers
+    d = PropDictionnary() #correspondance between (high-level) Python objects and integers
 
+    # says that at least one propositions in PROP is true
     def addExist(self, PROP):
         # [2, 5, 6, 9]  at least one is true
         self.g.add_clause([self.d.id(p) for p in PROP])
@@ -165,42 +165,45 @@ class Solver:
                     # [-2, -5] both cannot be true at the same time
                     self.g.add_clause([-self.d.id(p), -self.d.id(q)])
 
-    # we say that that propositin prop
-
+    # we say that proposition prop is true
     def addProp(self, prop):
         self.g.add_clause([self.d.id(prop)])
 
+    # we say that proposition prop is false
     def addNegProp(self, prop):
         self.g.add_clause([-self.d.id(prop)])
 
     # it returns a valuation that satisfies the set of constraints
+    # or None if it is unsatisfiable
     def get_model(self):
         try:
             self.g.solve()
             return list(filter(lambda o: o != None, map(lambda id: self.d.getProp(id), self.g.get_model())))
-        except TypeError:
+        except TypeError: #unsat
             return None
 
+    #add the clause to the set of constraint
     def addClause(self, clause):
-       # print(len(clause.posProp))
-       # print([self.d.id(p) for p in clause.posProp] + [-self.d.id(p) for p in clause.negProp])
         self.g.add_clause([self.d.id(p) for p in clause.posProp] +
                           [-self.d.id(p) for p in clause.negProp])
 
 
-# a clause of litterals
+# a clause of litterals. Propositions are (high-level) Python objects
 class Clause:
     def __init__(self):
         self.posProp = []
         self.negProp = []
 
+    #add a positive litteral
     def addPos(self, prop):
         self.posProp.append(prop)
 
+    #add a negative litteral
     def addNeg(self, prop):
         self.negProp.append(prop)
 
 
+#model of Section Application
 M = POLModel()
 M.addWorld("water", ["water"])
 M.addWorld("power", ["power"])
@@ -214,7 +217,7 @@ M.addEdge(0, 2, "a")
 M.addEdge(0, 1, "b")
 M.addEdge(1, 0, "b")
 
-
+#the alphabet are the directions
 alphabet = ["l", "u", 'd', 'r']
 
 solver = Solver()
@@ -398,7 +401,9 @@ def mcExample4():
     print(solver.get_model())
 
 
-mcExample3()
 
+
+# Run example 3
+mcExample3()
 end = time.time()
 print("Time elapsed: ", end - start, "ms")
