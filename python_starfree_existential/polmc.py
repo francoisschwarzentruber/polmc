@@ -203,24 +203,13 @@ class Clause:
         self.negProp.append(prop)
 
 
-#model of Section Application
-M = POLModel()
-M.addWorld("water", ["water"])
-M.addWorld("power", ["power"])
-M.addWorld("patrol", ["patrol"])
-M.addEdge(0, 1, "a")
-M.addEdge(1, 0, "a")
-M.addEdge(1, 2, "a")
-M.addEdge(2, 1, "a")
-M.addEdge(2, 0, "a")
-M.addEdge(0, 2, "a")
-M.addEdge(0, 1, "b")
-M.addEdge(1, 0, "b")
+
 
 #the alphabet are the directions
 alphabet = ["l", "u", 'd', 'r']
 
 solver = Solver()
+
 
 # surv
 # input: A = automaton
@@ -228,9 +217,6 @@ solver = Solver()
 #        k length of the guessed word
 # effect: add to the solver the constraint of the execution of the guessed word in automaton A
 #        => proposition {"type": "s", "automaton": idA} is true iff the word is accepted by A
-#
-
-
 def surv(A, idA, k):
     solver.addProp({"type": "a", "automaton": idA,
                    "t": 0, "q": autInitialState(A)})
@@ -263,8 +249,8 @@ def surv(A, idA, k):
         c.addPos({"type": "s", "automaton": idA})
         solver.addClause(c)
 
-
-def tseitinWorld(iw, phi):
+#add the truth condition of formula phi in world of ID iw in the POL model M
+def tseitinWorld(M,iw, phi):
     if isinstance(phi, str):
         print("prop!")
         if(phi in M.worlds[iw]["val"]):
@@ -335,23 +321,37 @@ def tseitinWorld(iw, phi):
 
         solver.addClause(c)
 
-
-def tseitin(phi):
+#Tseitin transformation of formula phi wrt to the POL model M
+def tseitin(M,phi):
     for iw in range(len(M.worlds)):
-        tseitinWorld(iw, phi)
+        tseitinWorld(M,iw, phi)
 
     if isinstance(phi, str):
         return
     elif phi[0] == "not":
-        tseitin(phi[1])
+        tseitin(M,phi[1])
     elif phi[0] == "and":
-        tseitin(phi[1])
-        tseitin(phi[2])
+        tseitin(M,phi[1])
+        tseitin(M,phi[2])
     elif phi[0] == "K":
-        tseitin(phi[2])
+        tseitin(M,phi[2])
 
-
+#example 3 of Section Application
 def mcExample3():
+    #model of Section Application
+    M = POLModel()
+    M.addWorld("water", ["water"])
+    M.addWorld("power", ["power"])
+    M.addWorld("patrol", ["patrol"])
+    M.addEdge(0, 1, "a")
+    M.addEdge(1, 0, "a")
+    M.addEdge(1, 2, "a")
+    M.addEdge(2, 1, "a")
+    M.addEdge(2, 0, "a")
+    M.addEdge(0, 2, "a")
+    M.addEdge(0, 1, "b")
+    M.addEdge(1, 0, "b")
+
     k = 4
     # GuessWord: the guessed word of size k is uniquely determined
     for t in range(k):
@@ -364,12 +364,11 @@ def mcExample3():
     surv(dfaSeqPower, "power", k)
     surv(dfaSeqWater, "water", k)
 
-    #phi = "azeaze"
     phi = ["and", ["K", "b", "water"], ["not", ["K", "a", ["not", "patrol"]]]]
 
     solver.addProp({"type": "t", "world": 0, "formula": phi})
 
-    tseitin(phi)
+    tseitin(M, phi)
     solver.addProp({"type": "s", "automaton": "seq4"})  # pi
     solver.addProp({"type": "s", "automaton": "water"})  # water should survive
     # patrol should survive
@@ -378,27 +377,6 @@ def mcExample3():
                       )  # power should not survive
     print(solver.get_model())
 
-
-def mcExample4():
-    k = 3
-    # GuessWord: the guessed word of size k is uniquely determined
-    for t in range(k):
-        solver.addExistUnique([{"type": "p", "t": t, "a": a}
-                              for a in alphabet])
-
-    # encodings of the readings of the guessed word for all the automata
-    surv(dfaSeq3, "seq3", k)
-    surv(dfaSeqPatrol, "patrol", k)
-    surv(dfaSeqPower, "power", k)
-    surv(dfaSeqWater, "water", k)
-
-    solver.addProp({"type": "s", "automaton": "seq3"})  # pi
-    solver.addProp({"type": "s", "automaton": "water"})  # water should survive
-    solver.addNegProp({"type": "s", "automaton": "patrol"}
-                      )  # patrol should not survive
-    solver.addNegProp({"type": "s", "automaton": "power"}
-                      )  # power should not survive
-    print(solver.get_model())
 
 
 
